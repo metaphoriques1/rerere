@@ -155,8 +155,86 @@ JSON EXACT REQUIS (respecte exactement ces noms de champs):
 # PDF: DEVIS PROFESSIONNEL FRANÇAIS — DESIGN COMPLET
 # ═══════════════════════════════════════════════════════════════
 
-def make_pdf(data: dict, numero: str) -> str:
-    return f"/tmp/devis_{numero}.pdf"
+def create_devis_pdf(data: dict, numero: str) -> str:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+
+    path = f"/tmp/devis_{numero}.pdf"
+    doc = SimpleDocTemplate(path, pagesize=A4,
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Header
+    story.append(Paragraph(f"<b>{data.get('artisan_name', ARTISAN_NAME)}</b>", styles['Title']))
+    story.append(Paragraph(ARTISAN_ADDRESS, styles['Normal']))
+    story.append(Paragraph(f"SIRET: {ARTISAN_SIRET} | TVA: {ARTISAN_TVA}", styles['Normal']))
+    story.append(Spacer(1, 0.5*cm))
+
+    # Numéro devis
+    story.append(Paragraph(f"<b>DEVIS N° {numero}</b>", styles['Heading1']))
+    story.append(Paragraph(f"Date: {datetime.date.today().strftime('%d/%m/%Y')} | Validité: {data.get('validite_jours', 30)} jours", styles['Normal']))
+    story.append(Spacer(1, 0.5*cm))
+
+    # Client
+    story.append(Paragraph(f"<b>Client:</b> {data.get('client_name', '')}", styles['Normal']))
+    if data.get('client_address'):
+        story.append(Paragraph(f"<b>Adresse:</b> {data['client_address']}", styles['Normal']))
+    story.append(Spacer(1, 0.5*cm))
+
+    # Description
+    story.append(Paragraph(f"<b>Objet:</b> {data.get('description_travaux', '')}", styles['Normal']))
+    story.append(Spacer(1, 0.3*cm))
+
+    # Tableau items
+    table_data = [['Description', 'Qté', 'Unité', 'Prix HT', 'Total HT']]
+    for item in data.get('items', []):
+        total = item['quantite'] * item['prix_unitaire_ht']
+        table_data.append([
+            item['description'],
+            str(item['quantite']),
+            item['unite'],
+            f"{item['prix_unitaire_ht']:.2f}€",
+            f"{total:.2f}€"
+        ])
+
+    table = Table(table_data, colWidths=[8*cm, 1.5*cm, 2*cm, 2.5*cm, 2.5*cm])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f5a623')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f9f9f9')]),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 0.5*cm))
+
+    # Totaux
+    totaux = [
+        ['Total HT', f"{data.get('total_ht', 0):.2f}€"],
+        [f"TVA {data.get('tva_rate', 20)}%", f"{data.get('tva_montant', 0):.2f}€"],
+        ['TOTAL TTC', f"{data.get('total_ttc', 0):.2f}€"],
+    ]
+    t2 = Table(totaux, colWidths=[13*cm, 3.5*cm])
+    t2.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('FONTNAME', (0,2), (-1,2), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,2), (-1,2), 12),
+        ('LINEABOVE', (0,2), (-1,2), 1, colors.black),
+    ]))
+    story.append(t2)
+
+    if data.get('notes'):
+        story.append(Spacer(1, 0.5*cm))
+        story.append(Paragraph(f"<b>Notes:</b> {data['notes']}", styles['Normal']))
+
+    doc.build(story)
+    return path
 
 
 # ═══════════════════════════════════════════════════════════════
