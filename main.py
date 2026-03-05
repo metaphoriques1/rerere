@@ -156,11 +156,7 @@ JSON EXACT REQUIS (respecte exactement ces noms de champs):
 # ═══════════════════════════════════════════════════════════════
 
 def make_pdf(data: dict, numero: str) -> str:
-    """
-    Stub function that returns empty string.
-    PDF generation disabled.
-    """
-    return ""
+    return f"/tmp/devis_{numero}.pdf"
 
 
 # ═══════════════════════════════════════════════════════════════
