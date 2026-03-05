@@ -1005,6 +1005,7 @@ async def stats():
 
 
 handler = Mangum(app)
+pythonhandler = Mangum(app)
 
 if __name__ == "__main__":
     import uvicorn
