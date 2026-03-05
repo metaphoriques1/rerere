@@ -28,6 +28,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from twilio.rest import Client
 import uvicorn
+from mangum import Mangum
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURATION — Variables d'environnement
@@ -806,3 +807,10 @@ if __name__ == "__main__":
     print('  -d \'{"transcript": "Pour Monsieur Dupont, remplacement tableau électrique 500 euros et 4 heures main oeuvre à 65 euros"}\'')
     print()
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
+
+# ═══════════════════════════════════════════════════════════════
+# VERCEL DEPLOYMENT HANDLER
+# ═══════════════════════════════════════════════════════════════
+
+handler = Mangum(app)
