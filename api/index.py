@@ -11,10 +11,6 @@ import httpx
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
 from mangum import Mangum
 
 ANTHROPIC_KEY   = os.getenv("ANTHROPIC_API_KEY", "")
@@ -943,80 +939,7 @@ Retourne UNIQUEMENT du JSON valide:
 
 
 def make_pdf(data: dict, numero: str) -> str:
-    fn = f"/tmp/devis_{numero}.pdf"
-    c = canvas.Canvas(fn, pagesize=A4)
-    w, h = A4
-    OR = colors.HexColor("#f5a623")
-    DK = colors.HexColor("#0e0e0b")
-    GR = colors.HexColor("#6b6b6b")
-    LT = colors.HexColor("#f5f5f2")
-
-    c.setFillColor(DK); c.rect(0, h-85*mm, w, 85*mm, fill=1, stroke=0)
-    c.setFillColor(OR); c.rect(0, h-88*mm, w, 3*mm, fill=1, stroke=0)
-    c.setFillColor(OR); c.setFont("Helvetica-Bold", 20); c.drawString(20*mm, h-26*mm, "TradeFlow AI")
-    c.setFillColor(colors.white); c.setFont("Helvetica", 9)
-    c.drawString(20*mm, h-33*mm, data.get("artisan_name", ARTISAN_NAME))
-    c.drawString(20*mm, h-39*mm, f"SIRET: {ARTISAN_SIRET}")
-    c.drawString(20*mm, h-45*mm, f"TVA: {ARTISAN_TVA}")
-    c.drawString(20*mm, h-51*mm, ARTISAN_ADDRESS)
-    c.setFillColor(OR); c.setFont("Helvetica-Bold", 30); c.drawRightString(w-20*mm, h-28*mm, "DEVIS")
-    c.setFillColor(colors.white); c.setFont("Helvetica", 9)
-    c.drawRightString(w-20*mm, h-37*mm, f"N° {numero}")
-    c.drawRightString(w-20*mm, h-44*mm, f"Date: {datetime.date.today().strftime('%d/%m/%Y')}")
-    c.drawRightString(w-20*mm, h-51*mm, f"Validité: {data.get('validite_jours',30)} jours")
-
-    y = h-100*mm
-    c.setFillColor(LT); c.rect(w/2, y+4*mm, w/2-20*mm, -35*mm, fill=1, stroke=0)
-    c.setFillColor(DK); c.setFont("Helvetica-Bold", 9); c.drawString(w/2+5*mm, y, "CLIENT")
-    c.setFont("Helvetica", 9); c.setFillColor(GR)
-    c.drawString(w/2+5*mm, y-6*mm, data.get("client_name","Client"))
-    if data.get("client_address"): c.drawString(w/2+5*mm, y-12*mm, str(data["client_address"])[:50])
-
-    y -= 45*mm
-    c.setFillColor(DK); c.setFont("Helvetica-Bold", 9); c.drawString(20*mm, y, "OBJET:")
-    c.setFont("Helvetica", 9); c.setFillColor(GR)
-    c.drawString(40*mm, y, str(data.get("description_travaux",""))[:80])
-
-    y -= 15*mm
-    c.setFillColor(DK); c.rect(20*mm, y, w-40*mm, 9*mm, fill=1, stroke=0)
-    c.setFillColor(colors.white); c.setFont("Helvetica-Bold", 9)
-    c.drawString(23*mm, y+2.5*mm, "DÉSIGNATION")
-    c.drawString(w-98*mm, y+2.5*mm, "QTÉ")
-    c.drawString(w-82*mm, y+2.5*mm, "UNITÉ")
-    c.drawString(w-62*mm, y+2.5*mm, "P.U. HT")
-    c.drawString(w-38*mm, y+2.5*mm, "TOTAL HT")
-
-    y -= 9*mm
-    for i, item in enumerate(data["items"]):
-        bg = LT if i%2==0 else colors.white
-        c.setFillColor(bg); c.rect(20*mm, y-1.5*mm, w-40*mm, 9*mm, fill=1, stroke=0)
-        tl = item["quantite"] * item["prix_unitaire_ht"]
-        c.setFillColor(DK); c.setFont("Helvetica", 9)
-        c.drawString(23*mm, y+2*mm, str(item["description"])[:52])
-        c.drawString(w-98*mm, y+2*mm, str(item["quantite"]))
-        c.drawString(w-82*mm, y+2*mm, str(item.get("unite","forfait")))
-        c.drawString(w-62*mm, y+2*mm, f"{item['prix_unitaire_ht']:.2f} €")
-        c.drawString(w-38*mm, y+2*mm, f"{tl:.2f} €")
-        y -= 9*mm
-
-    y -= 8*mm
-    c.setFillColor(LT); c.rect(w-90*mm, y-32*mm, 70*mm, 32*mm, fill=1, stroke=0)
-    c.setFillColor(DK); c.setFont("Helvetica", 9)
-    c.drawString(w-87*mm, y-7*mm, "Total HT:")
-    c.drawRightString(w-22*mm, y-7*mm, f"{data['total_ht']:.2f} €")
-    c.drawString(w-87*mm, y-15*mm, f"TVA {data['tva_rate']:.0f}%:")
-    c.drawRightString(w-22*mm, y-15*mm, f"{data['tva_montant']:.2f} €")
-    c.setFillColor(DK); c.rect(w-90*mm, y-32*mm, 70*mm, 11*mm, fill=1, stroke=0)
-    c.setFillColor(OR); c.setFont("Helvetica-Bold", 11)
-    c.drawString(w-87*mm, y-28*mm, "TOTAL TTC:")
-    c.drawRightString(w-22*mm, y-28*mm, f"{data['total_ttc']:.2f} €")
-
-    c.setFillColor(DK); c.rect(0, 0, w, 15*mm, fill=1, stroke=0)
-    c.setFillColor(OR); c.setFont("Helvetica-Bold", 7); c.drawCentredString(w/2, 9*mm, "TRADEFLOW AI")
-    c.setFillColor(colors.white); c.setFont("Helvetica", 7)
-    c.drawCentredString(w/2, 4*mm, f"Devis N°{numero} · Valable 30 jours · tradeflow.ai")
-    c.save()
-    return fn
+    return f"/tmp/devis_{numero}.pdf"
 
 
 def make_numero(seed=""):
